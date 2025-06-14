@@ -49,20 +49,23 @@ const Products = () => {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Filters - Desktop */}
         <div className="hidden md:block w-64">
-          <div className="bg-white p-4 rounded-xl shadow-sm">
-            <h2 className="font-semibold mb-4">Categories</h2>
-            <div className="space-y-2">
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h2 className="font-semibold text-lg mb-6 text-gray-800">Categories</h2>
+            <div className="space-y-3">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center ${
                     selectedCategory === category
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-indigo-100 text-indigo-700 font-medium shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  {category}
+                  <span className="flex-1">{category}</span>
+                  {selectedCategory === category && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                  )}
                 </button>
               ))}
             </div>
@@ -71,9 +74,9 @@ const Products = () => {
 
         {/* Filters - Mobile */}
         {isFilterOpen && (
-          <div className="md:hidden bg-white p-4 rounded-xl shadow-sm mb-4">
-            <h2 className="font-semibold mb-4">Categories</h2>
-            <div className="space-y-2">
+          <div className="md:hidden bg-white p-6 rounded-xl shadow-sm mb-4">
+            <h2 className="font-semibold text-lg mb-6 text-gray-800">Categories</h2>
+            <div className="space-y-3">
               {categories.map((category) => (
                 <button
                   key={category}
@@ -81,13 +84,16 @@ const Products = () => {
                     setSelectedCategory(category);
                     setIsFilterOpen(false);
                   }}
-                  className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center ${
                     selectedCategory === category
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'hover:bg-gray-50'
+                      ? 'bg-indigo-100 text-indigo-700 font-medium shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  {category}
+                  <span className="flex-1">{category}</span>
+                  {selectedCategory === category && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                  )}
                 </button>
               ))}
             </div>

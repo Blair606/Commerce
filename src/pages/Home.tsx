@@ -87,14 +87,21 @@ const Home = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
-              className="relative group cursor-pointer"
+              className="relative group"
             >
-              <div className="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <h3 className="text-white text-xl font-semibold">{category}</h3>
+              <Link 
+                to={`/products?category=${category}`}
+                className="block"
+              >
+                <div className="aspect-w-1 aspect-h-1 bg-gray-200 rounded-lg overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent group-hover:from-black/70 transition-all duration-300" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <h3 className="text-white text-xl font-semibold group-hover:scale-105 transition-transform">
+                      {category}
+                    </h3>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </motion.div>
           ))}
         </div>
