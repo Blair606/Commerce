@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { API_ENDPOINTS, API_BASE_URL } from '../../config/api.config';
+import { API_ENDPOINTS, API_BASE_URL, BACKEND_URL } from '../../config/api.config';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useSettings } from '../../context/SettingsContext';
@@ -30,7 +30,7 @@ interface NewProduct {
   description: string;
   price: string;
   categoryId: string;
-  image_url: string;
+  image: File | null;
   stock: string;
 }
 
@@ -56,7 +56,7 @@ const Products = () => {
     description: '',
     price: '',
     categoryId: '',
-    image_url: '',
+    image: null,
     stock: ''
   });
   const { token } = useAuth();
@@ -110,7 +110,7 @@ const Products = () => {
       description: product.description,
       price: product.price.toString(),
       categoryId: product.categoryId.toString(),
-      image_url: product.image_url || '',
+      image: null,
       stock: product.stock.toString()
     });
     setIsModalOpen(true);
@@ -123,7 +123,7 @@ const Products = () => {
       description: '',
       price: '',
       categoryId: '',
-      image_url: '',
+      image: null,
       stock: ''
     });
     setIsModalOpen(false);
@@ -140,35 +140,36 @@ const Products = () => {
         throw new Error('Please fill in all required fields');
       }
 
-      // Convert string values to numbers
-      const productData = {
-        name: newProduct.name,
-        description: newProduct.description || '',
-        price: newProduct.price,
-        categoryId: newProduct.categoryId,
-        stock: newProduct.stock,
-        image_url: newProduct.image_url || null
-      };
+      // Create FormData object for file upload
+      const formData = new FormData();
+      formData.append('name', newProduct.name);
+      formData.append('description', newProduct.description || '');
+      formData.append('price', newProduct.price);
+      formData.append('categoryId', newProduct.categoryId);
+      formData.append('stock', newProduct.stock);
+      if (newProduct.image) {
+        formData.append('image', newProduct.image);
+      }
 
       if (editingProduct) {
         await axios.put(
           `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.UPDATE}/${editingProduct.id}`,
-          productData,
+          formData,
           { 
             headers: { 
               Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'multipart/form-data'
             } 
           }
         );
       } else {
         const response = await axios.post(
           `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.CREATE}`,
-          productData,
+          formData,
           { 
             headers: { 
               Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'multipart/form-data'
             } 
           }
         );
@@ -182,6 +183,12 @@ const Products = () => {
       setSubmitError(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setNewProduct({ ...newProduct, image: e.target.files[0] });
     }
   };
 
@@ -200,6 +207,14 @@ const Products = () => {
       setImageError(true);
     };
 
+    const getImageUrl = (imageUrl: string | null) => {
+      if (!imageUrl) return null;
+      // If the URL is already absolute, return it as is
+      if (imageUrl.startsWith('http')) return imageUrl;
+      // Otherwise, prepend the backend URL
+      return `${BACKEND_URL}${imageUrl}`;
+    };
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -209,7 +224,7 @@ const Products = () => {
         <div className="relative h-48 bg-gray-100">
           {!imageError && product.image_url ? (
             <img
-              src={product.image_url}
+              src={getImageUrl(product.image_url)}
               alt={product.name}
               className="w-full h-full object-cover"
               onError={handleImageError}
@@ -224,7 +239,7 @@ const Products = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
           <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description}</p>
           <div className="flex justify-between items-center">
-            <span className="text-lg font-bold text-indigo-600">{formatPrice(product.price)}</span>
+            <span className="text-lg font-bold text-indigo-600">{formatPrice(Number(product.price))}</span>
             <span className="text-sm text-gray-500">Stock: {product.stock}</span>
           </div>
           <div className="mt-2">
@@ -414,14 +429,31 @@ const Products = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Image URL</label>
+                  <label className="block text-sm font-medium text-gray-700">Product Image</label>
                   <input
-                    type="url"
-                    value={newProduct.image_url}
-                    onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
                     disabled={isSubmitting}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="mt-1 block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-indigo-50 file:text-indigo-700
+                      hover:file:bg-indigo-100"
                   />
+                  <p className="mt-2 text-sm text-gray-500">
+                    Upload a product image (JPG, PNG, or GIF up to 5MB)
+                  </p>
+                  {newProduct.image && (
+                    <div className="mt-2">
+                      <img
+                        src={URL.createObjectURL(newProduct.image)}
+                        alt="Preview"
+                        className="h-32 w-32 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-4">

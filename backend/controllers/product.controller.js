@@ -7,29 +7,21 @@ export const getAllProducts = async (req, res) => {
     const products = await Product.findAll({
       include: [{
         model: Category,
-        attributes: ['id', 'name']
-      }],
-      order: [['created_at', 'DESC']]
+        attributes: ['name'],
+        as: 'Category'
+      }]
     });
 
-    // Format the response to match the frontend expectations
-    const formattedProducts = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: parseFloat(product.price),
-      stock: product.stock,
-      image_url: product.image_url,
-      categoryId: product.CategoryId,
-      category: product.Category ? product.Category.name : null,
-      created_at: product.created_at,
-      updated_at: product.updated_at
+    // Transform the response to include category name
+    const transformedProducts = products.map(product => ({
+      ...product.toJSON(),
+      category: product.Category ? product.Category.name : null
     }));
 
-    res.json({ products: formattedProducts });
+    res.json({ products: transformedProducts });
   } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching products:', error);
+    res.status(500).json({ message: 'Error fetching products' });
   }
 };
 
@@ -47,101 +39,104 @@ export const getCategories = async (req, res) => {
   }
 };
 
+// Get product by ID
+export const getProductById = async (req, res) => {
+  try {
+    const product = await Product.findByPk(req.params.id, {
+      include: [{
+        model: Category,
+        attributes: ['name'],
+        as: 'Category'
+      }]
+    });
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Transform the response to include category name
+    const transformedProduct = {
+      ...product.toJSON(),
+      category: product.Category ? product.Category.name : null
+    };
+
+    res.json(transformedProduct);
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({ message: 'Error fetching product' });
+  }
+};
+
 // Create new product
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, categoryId, image_url, stock } = req.body;
-
-    // Validate required fields
-    if (!name || !description || !price || !categoryId) {
-      return res.status(400).json({ 
-        message: 'Missing required fields',
-        required: ['name', 'description', 'price', 'categoryId']
-      });
-    }
-
-    // Validate price is a number
-    if (isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-      return res.status(400).json({ 
-        message: 'Price must be a valid positive number' 
-      });
-    }
-
-    // Validate stock is a number if provided
-    if (stock !== undefined && (isNaN(parseInt(stock)) || parseInt(stock) < 0)) {
-      return res.status(400).json({ 
-        message: 'Stock must be a valid positive number' 
-      });
+    const { name, description, price, stock, categoryId } = req.body;
+    
+    // Handle image upload
+    let image_url = null;
+    if (req.file) {
+      image_url = `${process.env.API_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
     }
 
     const product = await Product.create({
       name,
       description,
-      price: parseFloat(price),
-      CategoryId: parseInt(categoryId),
-      image_url,
-      stock: stock ? parseInt(stock) : 0
+      price,
+      stock,
+      categoryId,
+      image_url
     });
 
-    res.status(201).json({ product });
+    res.status(201).json(product);
   } catch (error) {
-    console.error('Create product error:', error);
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({ 
-        message: 'Validation error',
-        errors: error.errors.map(e => e.message)
-      });
-    }
-    if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({ 
-        message: 'Invalid category ID' 
-      });
-    }
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error creating product:', error);
+    res.status(500).json({ message: 'Error creating product' });
   }
 };
 
 // Update product
 export const updateProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, description, price, category, image_url, stock } = req.body;
+    const { name, description, price, stock, categoryId } = req.body;
+    const product = await Product.findByPk(req.params.id);
 
-    const product = await Product.findByPk(id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Update fields
-    if (name) product.name = name;
-    if (description) product.description = description;
-    if (price) product.price = price;
-    if (category) product.category = category;
-    if (image_url) product.image_url = image_url;
-    if (stock !== undefined) product.stock = stock;
+    // Handle image upload
+    let image_url = product.image_url;
+    if (req.file) {
+      image_url = `${process.env.API_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
+    }
 
-    await product.save();
-    res.json({ product });
+    await product.update({
+      name,
+      description,
+      price,
+      stock,
+      categoryId,
+      image_url
+    });
+
+    res.json(product);
   } catch (error) {
-    console.error('Update product error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error updating product:', error);
+    res.status(500).json({ message: 'Error updating product' });
   }
 };
 
 // Delete product
 export const deleteProduct = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const product = await Product.findByPk(id);
+    const product = await Product.findByPk(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-
     await product.destroy();
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
-    console.error('Delete product error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error deleting product:', error);
+    res.status(500).json({ message: 'Error deleting product' });
   }
 }; 
