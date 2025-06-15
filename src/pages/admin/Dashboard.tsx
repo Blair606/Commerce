@@ -8,38 +8,26 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../../config/api.config';
+import { useAuth } from '../../context/AuthContext';
 import Users from './Users';
 import Products from './Products';
 import Settings from './Settings';
 
-// Mock data for demonstration
-const stats = [
-  {
-    name: 'Total Users',
-    value: '1,234',
-    change: '+12%',
-    icon: UsersIcon,
-    color: 'from-blue-500 to-indigo-600',
-    textColor: 'text-blue-600',
-  },
-  {
-    name: 'Total Sales',
-    value: '$45,678',
-    change: '+8%',
-    icon: ShoppingBagIcon,
-    color: 'from-green-500 to-emerald-600',
-    textColor: 'text-green-600',
-  },
-  {
-    name: 'Active Products',
-    value: '567',
-    change: '+5%',
-    icon: ChartBarIcon,
-    color: 'from-purple-500 to-pink-600',
-    textColor: 'text-purple-600',
-  },
-];
+interface DashboardStats {
+  totalUsers: number;
+  pendingUsers: number;
+  newUsers: number;
+}
+
+interface RecentUser {
+  id: number;
+  username: string;
+  email: string;
+  created_at: string;
+}
 
 const navigation = [
   { 
@@ -73,6 +61,67 @@ const navigation = [
 ];
 
 const Overview = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axios.get(API_ENDPOINTS.USERS.DASHBOARD_STATS, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setStats(response.data.stats);
+        setRecentUsers(response.data.recentUsers);
+        setError('');
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to fetch dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [token]);
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const statsData = [
+    {
+      name: 'Total Users',
+      value: stats?.totalUsers.toLocaleString() || '0',
+      change: `+${stats?.newUsers || 0}`,
+      icon: UsersIcon,
+      color: 'from-blue-500 to-indigo-600',
+      textColor: 'text-blue-600',
+    },
+    {
+      name: 'Pending Approvals',
+      value: stats?.pendingUsers.toLocaleString() || '0',
+      change: 'Needs attention',
+      icon: ShoppingBagIcon,
+      color: 'from-yellow-500 to-orange-600',
+      textColor: 'text-yellow-600',
+    },
+    {
+      name: 'New Users (30d)',
+      value: stats?.newUsers.toLocaleString() || '0',
+      change: 'This month',
+      icon: ChartBarIcon,
+      color: 'from-green-500 to-emerald-600',
+      textColor: 'text-green-600',
+    },
+  ];
+
   return (
     <div className="py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
@@ -81,9 +130,14 @@ const Overview = () => {
         </h1>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
         <div className="py-4">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {stats.map((stat) => (
+            {statsData.map((stat) => (
               <motion.div
                 key={stat.name}
                 initial={{ opacity: 0, y: 20 }}
@@ -118,8 +172,7 @@ const Overview = () => {
                   <div className="text-sm">
                     <span className={`${stat.textColor} font-medium`}>
                       {stat.change}
-                    </span>{' '}
-                    <span className="text-gray-500">from last month</span>
+                    </span>
                   </div>
                 </div>
               </motion.div>
@@ -132,16 +185,16 @@ const Overview = () => {
           <div className="bg-white shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <h3 className="text-lg leading-6 font-medium bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Recent Activity
+                Recent User Registrations
               </h3>
             </div>
             <div className="divide-y divide-gray-200">
-              {[1, 2, 3, 4, 5].map((item) => (
+              {recentUsers.map((user, index) => (
                 <motion.li
-                  key={item}
+                  key={user.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: item * 0.1 }}
+                  transition={{ delay: index * 0.1 }}
                   className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors duration-200"
                 >
                   <div className="flex items-center justify-between">
@@ -156,16 +209,16 @@ const Overview = () => {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm font-medium text-gray-900">
-                          New user registration
+                          {user.username}
                         </p>
                         <p className="text-sm text-gray-500">
-                          John Doe registered a new account
+                          {user.email}
                         </p>
                       </div>
                     </div>
                     <div className="ml-2 flex-shrink-0">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        2 hours ago
+                        {new Date(user.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
