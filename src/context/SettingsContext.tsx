@@ -12,6 +12,7 @@ interface Settings {
     opening: string;
     closing: string;
   };
+  siteName: string;
 }
 
 interface SettingsContextType {
@@ -31,7 +32,8 @@ const defaultSettings: Settings = {
   storeHours: {
     opening: '09:00',
     closing: '18:00'
-  }
+  },
+  siteName: 'ShopHub'
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

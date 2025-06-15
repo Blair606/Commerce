@@ -213,6 +213,10 @@ const GeneralSettings = () => {
     });
   };
 
+  const handleSiteNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateSettings({ siteName: e.target.value });
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
@@ -223,8 +227,19 @@ const GeneralSettings = () => {
             <input
               type="text"
               className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              defaultValue="My E-commerce Store"
+              value={settings.siteName}
+              onChange={handleSiteNameChange}
+              placeholder="Enter your site name"
             />
+            <p className="mt-2 text-sm text-gray-500">
+              This name will appear in the navigation bar and footer of your site.
+            </p>
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Preview</h4>
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl font-bold text-indigo-600">{settings.siteName}</span>
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Site Description</label>

@@ -10,12 +10,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
 
   // Close dropdown when clicking outside
@@ -41,7 +43,9 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-white">ShopHub</span>
+            <span className="text-2xl font-bold text-white hover:text-indigo-200 transition-colors">
+              {settings.siteName}
+            </span>
           </Link>
 
           {/* Desktop Navigation */}

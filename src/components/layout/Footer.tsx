@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom';
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
+import { useSettings } from '../../context/SettingsContext';
 
 const Footer = () => {
+  const { settings } = useSettings();
+  
   return (
     <footer className="bg-gray-900 text-white">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div>
-            <h3 className="text-xl font-bold mb-4">ShopHub</h3>
+            <h3 className="text-xl font-bold mb-4">{settings.siteName}</h3>
             <p className="text-gray-400">
               Your one-stop shop for all your needs. Quality products, great prices, and excellent service.
             </p>
@@ -94,8 +97,8 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-          <p>&copy; {new Date().getFullYear()} ShopHub. All rights reserved.</p>
+        <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
+          <p>&copy; {new Date().getFullYear()} {settings.siteName}. All rights reserved.</p>
         </div>
       </div>
     </footer>
