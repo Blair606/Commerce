@@ -6,6 +6,7 @@ import {
   Cog6ToothIcon,
   Bars3Icon,
   XMarkIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -15,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import Users from './Users';
 import Products from './Products';
 import Settings from './Settings';
+import Categories from './Categories';
 
 interface DashboardStats {
   totalUsers: number;
@@ -50,6 +52,13 @@ const navigation = [
     icon: ShoppingBagIcon,
     color: 'from-purple-500 to-pink-600',
     hoverColor: 'hover:from-purple-600 hover:to-pink-700',
+  },
+  { 
+    name: 'Categories', 
+    href: '/admin/categories', 
+    icon: TagIcon,
+    color: 'from-orange-500 to-red-600',
+    hoverColor: 'hover:from-orange-600 hover:to-red-700',
   },
   { 
     name: 'Settings', 
@@ -354,6 +363,7 @@ const AdminDashboard = () => {
               <Route path="/" element={<Overview />} />
               <Route path="/users" element={<Users />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/categories" element={<Categories />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>

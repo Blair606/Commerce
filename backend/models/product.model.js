@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
+import Category from './category.model.js';
 
 const Product = sequelize.define('Product', {
   id: {
@@ -19,10 +20,6 @@ const Product = sequelize.define('Product', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  category: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
   image_url: {
     type: DataTypes.STRING,
     allowNull: true
@@ -37,5 +34,9 @@ const Product = sequelize.define('Product', {
   createdAt: 'created_at',
   updatedAt: 'updated_at'
 });
+
+// Define the relationship
+Product.belongsTo(Category);
+Category.hasMany(Product);
 
 export default Product; 

@@ -1,12 +1,32 @@
 import Product from '../models/product.model.js';
+import Category from '../models/category.model.js';
 
 // Get all products
 export const getAllProducts = async (req, res) => {
   try {
     const products = await Product.findAll({
+      include: [{
+        model: Category,
+        attributes: ['id', 'name']
+      }],
       order: [['created_at', 'DESC']]
     });
-    res.json({ products });
+
+    // Format the response to match the frontend expectations
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: parseFloat(product.price),
+      stock: product.stock,
+      image_url: product.image_url,
+      categoryId: product.CategoryId,
+      category: product.Category ? product.Category.name : null,
+      created_at: product.created_at,
+      updated_at: product.updated_at
+    }));
+
+    res.json({ products: formattedProducts });
   } catch (error) {
     console.error('Get products error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -30,25 +50,53 @@ export const getCategories = async (req, res) => {
 // Create new product
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, image_url, stock } = req.body;
+    const { name, description, price, categoryId, image_url, stock } = req.body;
 
     // Validate required fields
-    if (!name || !description || !price || !category) {
-      return res.status(400).json({ message: 'All fields are required' });
+    if (!name || !description || !price || !categoryId) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        required: ['name', 'description', 'price', 'categoryId']
+      });
+    }
+
+    // Validate price is a number
+    if (isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+      return res.status(400).json({ 
+        message: 'Price must be a valid positive number' 
+      });
+    }
+
+    // Validate stock is a number if provided
+    if (stock !== undefined && (isNaN(parseInt(stock)) || parseInt(stock) < 0)) {
+      return res.status(400).json({ 
+        message: 'Stock must be a valid positive number' 
+      });
     }
 
     const product = await Product.create({
       name,
       description,
-      price,
-      category,
+      price: parseFloat(price),
+      CategoryId: parseInt(categoryId),
       image_url,
-      stock: stock || 0
+      stock: stock ? parseInt(stock) : 0
     });
 
     res.status(201).json({ product });
   } catch (error) {
     console.error('Create product error:', error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error',
+        errors: error.errors.map(e => e.message)
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({ 
+        message: 'Invalid category ID' 
+      });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };

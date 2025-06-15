@@ -1,12 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { sequelize } from './models/index.js';
 import userRoutes from './routes/user.routes.js';
 import productRoutes from './routes/product.routes.js';
 import categoryRoutes from './routes/category.routes.js';
-import { initDatabase } from './config/init-db.js';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -21,28 +20,19 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 
-// Initialize database
-initDatabase()
-  .then(() => {
-    console.log('Database initialized successfully');
-  })
-  .catch((error) => {
-    console.error('Database initialization failed:', error);
-  });
-
-// Basic route
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the E-commerce API' });
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Set port and start server
+// Database sync and server start
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+sequelize.sync({ alter: true }).then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Unable to connect to the database:', err);
 }); 

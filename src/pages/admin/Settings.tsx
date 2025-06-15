@@ -8,14 +8,42 @@ import {
   TruckIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { useSettings } from '../../context/SettingsContext';
 
 // Separate components for better organization
 const CurrencySettings = () => {
+  const { settings, updateSettings } = useSettings();
+  
   const currencies = [
+    { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling' },
     { code: 'USD', symbol: '$', name: 'US Dollar' },
     { code: 'EUR', symbol: '€', name: 'Euro' },
     { code: 'GBP', symbol: '£', name: 'British Pound' },
   ];
+
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedCurrency = currencies.find(c => c.code === e.target.value);
+    if (selectedCurrency) {
+      updateSettings({
+        currency: {
+          ...settings.currency,
+          code: selectedCurrency.code,
+          symbol: selectedCurrency.symbol,
+          name: selectedCurrency.name
+        }
+      });
+    }
+  };
+
+  const handlePositionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const position = e.target.value as 'before' | 'after';
+    updateSettings({
+      currency: {
+        ...settings.currency,
+        position
+      }
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -24,7 +52,11 @@ const CurrencySettings = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Default Currency</label>
-            <select className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <select 
+              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              value={settings.currency.code}
+              onChange={handleCurrencyChange}
+            >
               {currencies.map((currency) => (
                 <option key={currency.code} value={currency.code}>
                   {currency.name} ({currency.symbol})
@@ -34,10 +66,22 @@ const CurrencySettings = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Currency Position</label>
-            <select className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-              <option>Before price ($100)</option>
-              <option>After price (100$)</option>
+            <select 
+              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              value={settings.currency.position}
+              onChange={handlePositionChange}
+            >
+              <option value="before">Before price ({settings.currency.symbol}100)</option>
+              <option value="after">After price (100{settings.currency.symbol})</option>
             </select>
+          </div>
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Preview</h4>
+            <p className="text-lg">
+              {settings.currency.position === 'before' 
+                ? `${settings.currency.symbol} 1,234.56`
+                : `1,234.56 ${settings.currency.symbol}`}
+            </p>
           </div>
         </div>
       </div>
@@ -154,6 +198,21 @@ const ShippingSettings = () => {
 };
 
 const GeneralSettings = () => {
+  const { settings, updateSettings } = useSettings();
+
+  const handleMaintenanceModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateSettings({ maintenanceMode: e.target.checked });
+  };
+
+  const handleStoreHoursChange = (type: 'opening' | 'closing', value: string) => {
+    updateSettings({
+      storeHours: {
+        ...settings.storeHours,
+        [type]: value
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
@@ -179,7 +238,12 @@ const GeneralSettings = () => {
             <label className="block text-sm font-medium text-gray-700">Maintenance Mode</label>
             <div className="mt-2">
               <label className="inline-flex items-center">
-                <input type="checkbox" className="form-checkbox h-5 w-5 text-indigo-600" />
+                <input 
+                  type="checkbox" 
+                  className="form-checkbox h-5 w-5 text-indigo-600"
+                  checked={settings.maintenanceMode}
+                  onChange={handleMaintenanceModeChange}
+                />
                 <span className="ml-2 text-gray-700">Enable maintenance mode</span>
               </label>
             </div>
@@ -192,7 +256,8 @@ const GeneralSettings = () => {
                 <input
                   type="time"
                   className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  defaultValue="09:00"
+                  value={settings.storeHours.opening}
+                  onChange={(e) => handleStoreHoursChange('opening', e.target.value)}
                 />
               </div>
               <div>
@@ -200,7 +265,8 @@ const GeneralSettings = () => {
                 <input
                   type="time"
                   className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  defaultValue="18:00"
+                  value={settings.storeHours.closing}
+                  onChange={(e) => handleStoreHoursChange('closing', e.target.value)}
                 />
               </div>
             </div>

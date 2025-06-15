@@ -1,26 +1,35 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { API_ENDPOINTS } from '../../config/api.config';
+import { API_ENDPOINTS, API_BASE_URL } from '../../config/api.config';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useSettings } from '../../context/SettingsContext';
+
+interface Category {
+  id: number;
+  name: string;
+  description?: string;
+}
 
 interface Product {
   id: number;
   name: string;
   description: string;
-  price: number | string;
-  category: string;
-  image_url?: string;
+  price: number;
   stock: number;
+  image_url: string | null;
+  categoryId: number;
+  category: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface NewProduct {
   name: string;
   description: string;
   price: string;
-  category: string;
+  categoryId: string;
   image_url: string;
   stock: string;
 }
@@ -37,27 +46,33 @@ const Products = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newProduct, setNewProduct] = useState<NewProduct>({
     name: '',
     description: '',
     price: '',
-    category: '',
+    categoryId: '',
     image_url: '',
     stock: ''
   });
   const { token } = useAuth();
+  const { formatPrice } = useSettings();
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get(API_ENDPOINTS.PRODUCTS.ALL);
-      setProducts(response.data.products || []);
-      setError('');
+      setLoading(true);
+      const response = await axios.get(
+        `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.ALL}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setProducts(response.data.products);
     } catch (err) {
-      setError('Failed to fetch products');
       console.error('Error fetching products:', err);
+      setError('Failed to fetch products');
     } finally {
       setLoading(false);
     }
@@ -65,8 +80,8 @@ const Products = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(API_ENDPOINTS.PRODUCTS.CATEGORIES);
-      setCategories(response.data.categories || []);
+      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.ALL}`);
+      setCategories(response.data || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
     }
@@ -94,7 +109,7 @@ const Products = () => {
       name: product.name,
       description: product.description,
       price: product.price.toString(),
-      category: product.category,
+      categoryId: product.categoryId.toString(),
       image_url: product.image_url || '',
       stock: product.stock.toString()
     });
@@ -107,7 +122,7 @@ const Products = () => {
       name: '',
       description: '',
       price: '',
-      category: '',
+      categoryId: '',
       image_url: '',
       stock: ''
     });
@@ -116,31 +131,65 @@ const Products = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError('');
+    setIsSubmitting(true);
+
     try {
+      // Validate required fields
+      if (!newProduct.name || !newProduct.price || !newProduct.categoryId || !newProduct.stock) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      // Convert string values to numbers
+      const productData = {
+        name: newProduct.name,
+        description: newProduct.description || '',
+        price: newProduct.price,
+        categoryId: newProduct.categoryId,
+        stock: newProduct.stock,
+        image_url: newProduct.image_url || null
+      };
+
       if (editingProduct) {
         await axios.put(
-          `${API_ENDPOINTS.PRODUCTS.UPDATE}/${editingProduct.id}`,
-          newProduct,
-          { headers: { Authorization: `Bearer ${token}` } }
+          `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.UPDATE}/${editingProduct.id}`,
+          productData,
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            } 
+          }
         );
       } else {
-        await axios.post(
-          API_ENDPOINTS.PRODUCTS.CREATE,
-          newProduct,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const response = await axios.post(
+          `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.CREATE}`,
+          productData,
+          { 
+            headers: { 
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            } 
+          }
         );
+        console.log('Product created:', response.data);
       }
       handleModalClose();
       fetchProducts();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving product:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save product. Please try again.';
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+      product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || 
+      (product.categoryId != null && product.categoryId.toString() === selectedCategory);
     return matchesSearch && matchesCategory;
   });
 
@@ -158,9 +207,9 @@ const Products = () => {
         className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
       >
         <div className="relative h-48 bg-gray-100">
-          {!imageError ? (
+          {!imageError && product.image_url ? (
             <img
-              src={product.image_url || 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Image'}
+              src={product.image_url}
               alt={product.name}
               className="w-full h-full object-cover"
               onError={handleImageError}
@@ -173,23 +222,26 @@ const Products = () => {
         </div>
         <div className="p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
+          <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description}</p>
           <div className="flex justify-between items-center">
-            <span className="text-lg font-bold text-indigo-600">
-              ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
-            </span>
+            <span className="text-lg font-bold text-indigo-600">{formatPrice(product.price)}</span>
             <span className="text-sm text-gray-500">Stock: {product.stock}</span>
+          </div>
+          <div className="mt-2">
+            <span className="text-sm text-gray-500">
+              Category: {product.category || 'Uncategorized'}
+            </span>
           </div>
           <div className="mt-4 flex justify-end space-x-2">
             <button
               onClick={() => onEdit(product)}
-              className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800"
+              className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-900"
             >
               Edit
             </button>
             <button
               onClick={() => onDelete(product.id)}
-              className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
+              className="px-3 py-1 text-sm text-red-600 hover:text-red-900"
             >
               Delete
             </button>
@@ -242,20 +294,20 @@ const Products = () => {
         >
           <option value="all">All Categories</option>
           {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
+            <option key={category.id} value={category.id}>
+              {category.name}
             </option>
           ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
+        {filteredProducts.map(product => (
           <ProductCard
             key={product.id}
             product={product}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={() => handleEdit(product)}
+            onDelete={() => handleDelete(product.id)}
           />
         ))}
       </div>
@@ -266,35 +318,42 @@ const Products = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
+              className="bg-white rounded-lg p-6 w-full max-w-md"
             >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold">
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
                 </h2>
                 <button
                   onClick={handleModalClose}
-                  className="text-gray-400 hover:text-gray-500"
+                  className="text-gray-500 hover:text-gray-700"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
 
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                  {submitError}
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">Name *</label>
                   <input
                     type="text"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     required
+                    disabled={isSubmitting}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
 
@@ -303,52 +362,55 @@ const Products = () => {
                   <textarea
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     rows={3}
-                    required
+                    disabled={isSubmitting}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Price</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newProduct.price}
-                      onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Stock</label>
-                    <input
-                      type="number"
-                      value={newProduct.stock}
-                      onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Price *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    required
+                    disabled={isSubmitting}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <label className="block text-sm font-medium text-gray-700">Category *</label>
                   <select
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    value={newProduct.categoryId}
+                    onChange={(e) => setNewProduct({ ...newProduct, categoryId: e.target.value })}
                     required
+                    disabled={isSubmitting}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   >
                     <option value="">Select a category</option>
                     {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
+                      <option key={category.id} value={category.id}>
+                        {category.name}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newProduct.stock}
+                    onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                    required
+                    disabled={isSubmitting}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  />
                 </div>
 
                 <div>
@@ -357,24 +419,33 @@ const Products = () => {
                     type="url"
                     value={newProduct.image_url}
                     onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })}
+                    disabled={isSubmitting}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    placeholder="https://example.com/image.jpg"
                   />
                 </div>
 
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end space-x-4">
                   <button
                     type="button"
                     onClick={handleModalClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    {editingProduct ? 'Update Product' : 'Add Product'}
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        {editingProduct ? 'Updating...' : 'Adding...'}
+                      </div>
+                    ) : (
+                      editingProduct ? 'Update Product' : 'Add Product'
+                    )}
                   </button>
                 </div>
               </form>

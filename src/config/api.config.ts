@@ -23,5 +23,11 @@ export const API_ENDPOINTS = {
     UPDATE: '/products',
     DELETE: '/products',
     CATEGORIES: '/products/categories'
+  },
+  CATEGORIES: {
+    ALL: '/categories',
+    CREATE: '/categories',
+    UPDATE: (id: number) => `/categories/${id}`,
+    DELETE: (id: number) => `/categories/${id}`
   }
 } as const; 
