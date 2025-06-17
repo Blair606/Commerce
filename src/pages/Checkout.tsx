@@ -1,36 +1,170 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api.config';
+import { useNavigate } from 'react-router-dom';
 
 const checkoutSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
   email: z.string().email('Invalid email address'),
+  phone: z.string().min(10, 'Valid phone number is required'),
   address: z.string().min(5, 'Address is required'),
   city: z.string().min(2, 'City is required'),
   country: z.string().min(2, 'Country is required'),
   zipCode: z.string().min(3, 'ZIP code is required'),
-  paymentMethod: z.enum(['credit', 'paypal', 'mpesa']),
+  paymentMethod: z.enum(['cod', 'mpesa', 'paypal']),
+  mpesaNumber: z.string().optional(),
 });
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
+interface CartItem {
+  id: number;
+  product_id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image_url: string;
+}
+
 const Checkout = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      paymentMethod: 'cod'
+    }
   });
 
-  const onSubmit = (data: CheckoutFormData) => {
-    console.log(data);
-    // Handle form submission
+  const paymentMethod = watch('paymentMethod');
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(API_ENDPOINTS.CART.ALL);
+        setCartItems(response.data.items);
+      } catch (err) {
+        console.error('Error fetching cart:', err);
+        setError('Failed to load cart items');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCart();
+  }, []);
+
+  const onSubmit = async (data: CheckoutFormData) => {
+    if (step === 3) {
+      try {
+        setSubmitting(true);
+        const orderData = {
+          ...data,
+          items: cartItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity
+          }))
+        };
+        
+        const response = await axios.post(API_ENDPOINTS.ORDERS.CREATE, orderData);
+        setOrderId(response.data.orderId);
+        
+        // Clear cart after successful order
+        await axios.post(API_ENDPOINTS.CART.CLEAR);
+        
+        // Navigate to success page with order ID
+        navigate(`/order-success/${response.data.orderId}`);
+      } catch (err) {
+        console.error('Error creating order:', err);
+        setError('Failed to create order. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      setStep(step + 1);
+    }
   };
+
+  const subtotal = cartItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+  const shipping = subtotal > 0 ? 10 : 0;
+  const total = subtotal + shipping;
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-8" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="h-6 bg-gray-200 rounded w-1/3 mb-6" />
+                <div className="space-y-4">
+                  <div className="h-10 bg-gray-200 rounded w-full" />
+                  <div className="h-10 bg-gray-200 rounded w-full" />
+                  <div className="h-10 bg-gray-200 rounded w-full" />
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="h-6 bg-gray-200 rounded w-1/3 mb-6" />
+                <div className="space-y-4">
+                  <div className="h-4 bg-gray-200 rounded w-full" />
+                  <div className="h-4 bg-gray-200 rounded w-full" />
+                  <div className="h-4 bg-gray-200 rounded w-full" />
+                  <div className="h-8 bg-gray-200 rounded w-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-red-500 text-center py-8">{error}</div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-semibold mb-4">Your cart is empty</h2>
+          <button
+            onClick={() => navigate('/products')}
+            className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -127,6 +261,21 @@ const Checkout = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      {...register('phone')}
+                      className="input"
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.phone.message}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Address
                     </label>
                     <input
@@ -200,33 +349,33 @@ const Checkout = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Payment Method
                     </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                    <div className="space-y-4">
+                      <label className="flex items-center space-x-3">
                         <input
                           type="radio"
-                          value="credit"
+                          value="cod"
                           {...register('paymentMethod')}
-                          className="text-indigo-600"
+                          className="h-4 w-4 text-indigo-600"
                         />
-                        <span>Credit Card</span>
+                        <span>Cash on Delivery</span>
                       </label>
-                      <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          value="paypal"
-                          {...register('paymentMethod')}
-                          className="text-indigo-600"
-                        />
-                        <span>PayPal</span>
-                      </label>
-                      <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <label className="flex items-center space-x-3">
                         <input
                           type="radio"
                           value="mpesa"
                           {...register('paymentMethod')}
-                          className="text-indigo-600"
+                          className="h-4 w-4 text-indigo-600"
                         />
                         <span>M-Pesa</span>
+                      </label>
+                      <label className="flex items-center space-x-3">
+                        <input
+                          type="radio"
+                          value="paypal"
+                          {...register('paymentMethod')}
+                          className="h-4 w-4 text-indigo-600"
+                        />
+                        <span>PayPal</span>
                       </label>
                     </div>
                     {errors.paymentMethod && (
@@ -234,6 +383,55 @@ const Checkout = () => {
                         {errors.paymentMethod.message}
                       </p>
                     )}
+                  </div>
+
+                  {paymentMethod === 'mpesa' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        M-Pesa Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        {...register('mpesaNumber')}
+                        className="input"
+                        placeholder="Enter your M-Pesa number"
+                      />
+                      {errors.mpesaNumber && (
+                        <p className="text-red-500 text-sm mt-1">
+                          {errors.mpesaNumber.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="space-y-4"
+                >
+                  <h3 className="text-lg font-semibold">Order Summary</h3>
+                  <div className="space-y-4">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex items-center space-x-4">
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <h4 className="font-medium">{item.name}</h4>
+                          <p className="text-sm text-gray-500">
+                            Quantity: {item.quantity}
+                          </p>
+                        </div>
+                        <p className="font-semibold">
+                          ${(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </motion.div>
               )}
@@ -243,24 +441,18 @@ const Checkout = () => {
                   <button
                     type="button"
                     onClick={() => setStep(step - 1)}
-                    className="btn btn-secondary"
+                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Back
                   </button>
                 )}
-                {step < 3 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep(step + 1)}
-                    className="btn btn-primary ml-auto"
-                  >
-                    Continue
-                  </button>
-                ) : (
-                  <button type="submit" className="btn btn-primary ml-auto">
-                    Place Order
-                  </button>
-                )}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {submitting ? 'Processing...' : step === 3 ? 'Place Order' : 'Continue'}
+                </button>
               </div>
             </form>
           </div>
@@ -273,17 +465,17 @@ const Checkout = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-semibold">$499.98</span>
+                <span className="font-semibold">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
-                <span className="font-semibold">$10.00</span>
+                <span className="font-semibold">${shipping.toFixed(2)}</span>
               </div>
               <div className="border-t pt-4">
                 <div className="flex justify-between">
                   <span className="text-lg font-semibold">Total</span>
                   <span className="text-lg font-bold text-indigo-600">
-                    $509.98
+                    ${total.toFixed(2)}
                   </span>
                 </div>
               </div>

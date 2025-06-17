@@ -30,5 +30,19 @@ export const API_ENDPOINTS = {
     CREATE: `${API_BASE_URL}/categories`,
     UPDATE: (id: number) => `${API_BASE_URL}/categories/${id}`,
     DELETE: (id: number) => `${API_BASE_URL}/categories/${id}`
+  },
+  CART: {
+    ALL: `${API_BASE_URL}/cart`,
+    ADD: `${API_BASE_URL}/cart/add`,
+    UPDATE: (id: number) => `${API_BASE_URL}/cart/${id}`,
+    DELETE: (id: number) => `${API_BASE_URL}/cart/${id}`,
+    CLEAR: `${API_BASE_URL}/cart/clear`
+  },
+  ORDERS: {
+    ALL: `${API_BASE_URL}/orders`,
+    CREATE: `${API_BASE_URL}/orders`,
+    GET: (id: number) => `${API_BASE_URL}/orders/${id}`,
+    UPDATE: (id: number) => `${API_BASE_URL}/orders/${id}`,
+    CANCEL: (id: number) => `${API_BASE_URL}/orders/${id}/cancel`
   }
 } as const; 

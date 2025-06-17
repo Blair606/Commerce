@@ -33,13 +33,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   axios.defaults.baseURL = API_BASE_URL;
   axios.defaults.headers.common['Content-Type'] = 'application/json';
 
+  // Set up axios interceptor to handle token
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
+
   useEffect(() => {
     const initializeAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get(API_ENDPOINTS.AUTH.PROFILE, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const response = await axios.get(API_ENDPOINTS.AUTH.PROFILE);
           const userData = response.data.user;
           setUser(userData);
           localStorage.setItem('userRole', userData.role);

@@ -8,20 +8,20 @@ export const getAllProducts = async (req, res) => {
       include: [{
         model: Category,
         attributes: ['name'],
-        as: 'Category'
+        as: 'category'
       }]
     });
 
     // Transform the response to include category name
     const transformedProducts = products.map(product => ({
       ...product.toJSON(),
-      category: product.Category ? product.Category.name : null
+      category: product.category ? product.category.name : null
     }));
 
     res.json({ products: transformedProducts });
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({ message: 'Error fetching products' });
+    res.status(500).json({ message: 'Error fetching products', error: error.message });
   }
 };
 
@@ -34,7 +34,7 @@ export const getCategories = async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error('Get categories error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -45,7 +45,7 @@ export const getProductById = async (req, res) => {
       include: [{
         model: Category,
         attributes: ['name'],
-        as: 'Category'
+        as: 'category'
       }]
     });
     
@@ -56,20 +56,20 @@ export const getProductById = async (req, res) => {
     // Transform the response to include category name
     const transformedProduct = {
       ...product.toJSON(),
-      category: product.Category ? product.Category.name : null
+      category: product.category ? product.category.name : null
     };
 
     res.json(transformedProduct);
   } catch (error) {
     console.error('Error fetching product:', error);
-    res.status(500).json({ message: 'Error fetching product' });
+    res.status(500).json({ message: 'Error fetching product', error: error.message });
   }
 };
 
 // Create new product
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, categoryId } = req.body;
+    const { name, description, price, stock, category_id } = req.body;
     
     // Handle image upload
     let image_url = null;
@@ -82,21 +82,21 @@ export const createProduct = async (req, res) => {
       description,
       price,
       stock,
-      categoryId,
+      category_id,
       image_url
     });
 
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ message: 'Error creating product' });
+    res.status(500).json({ message: 'Error creating product', error: error.message });
   }
 };
 
 // Update product
 export const updateProduct = async (req, res) => {
   try {
-    const { name, description, price, stock, categoryId } = req.body;
+    const { name, description, price, stock, category_id } = req.body;
     const product = await Product.findByPk(req.params.id);
 
     if (!product) {
@@ -114,14 +114,14 @@ export const updateProduct = async (req, res) => {
       description,
       price,
       stock,
-      categoryId,
+      category_id,
       image_url
     });
 
     res.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Error updating product' });
+    res.status(500).json({ message: 'Error updating product', error: error.message });
   }
 };
 
@@ -136,6 +136,6 @@ export const deleteProduct = async (req, res) => {
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ message: 'Error deleting product' });
+    res.status(500).json({ message: 'Error deleting product', error: error.message });
   }
 }; 

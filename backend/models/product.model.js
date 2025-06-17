@@ -1,6 +1,5 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
-import Category from './category.model.js';
 
 const Product = sequelize.define('Product', {
   id: {
@@ -13,30 +12,30 @@ const Product = sequelize.define('Product', {
     allowNull: false
   },
   description: {
-    type: DataTypes.TEXT,
-    allowNull: false
+    type: DataTypes.TEXT
   },
   price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
-  image_url: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
   stock: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0
+  },
+  image_url: {
+    type: DataTypes.STRING
+  },
+  category_id: {
+    type: DataTypes.INTEGER,
+    references: {
+      model: 'Categories',
+      key: 'id'
+    }
   }
 }, {
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  tableName: 'products',
+  timestamps: true
 });
-
-// Define the relationship
-Product.belongsTo(Category);
-Category.hasMany(Product);
 
 export default Product; 

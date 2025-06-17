@@ -17,6 +17,7 @@ const Category = sequelize.define('Category', {
     allowNull: true
   }
 }, {
+  tableName: 'categories',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at'
