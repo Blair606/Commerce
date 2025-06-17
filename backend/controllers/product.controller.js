@@ -28,11 +28,10 @@ export const getAllProducts = async (req, res) => {
 // Get product categories
 export const getCategories = async (req, res) => {
   try {
-    const categories = await Product.findAll({
-      attributes: ['category'],
-      group: ['category']
+    const categories = await Category.findAll({
+      attributes: ['id', 'name', 'description']
     });
-    res.json({ categories: categories.map(c => c.category) });
+    res.json(categories);
   } catch (error) {
     console.error('Get categories error:', error);
     res.status(500).json({ message: 'Server error' });

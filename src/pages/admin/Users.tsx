@@ -41,15 +41,30 @@ const Users = () => {
 
   const handleApprove = async (userId: number) => {
     try {
-      await axios.put(
+      const response = await axios.put(
         API_ENDPOINTS.USERS.APPROVE(userId),
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      fetchUsers(); // Refresh the list
+      
+      // Update the user in the local state
+      setUsers(users.map(user => 
+        user.id === userId 
+          ? { ...user, is_approved: true }
+          : user
+      ));
+      
+      // Show success message
+      alert('User approved successfully');
     } catch (err) {
-      setError('Failed to approve user. Please try again.');
-      console.error('Error approving user:', err);
+      if (axios.isAxiosError(err)) {
+        const errorMessage = err.response?.data?.message || 'Failed to approve user';
+        setError(errorMessage);
+        console.error('Error approving user:', err.response?.data);
+      } else {
+        setError('An unexpected error occurred');
+        console.error('Error approving user:', err);
+      }
     }
   };
 

@@ -59,8 +59,13 @@ export const register = async (req, res) => {
     });
 
     // Send notification to all admin users
-    for (const admin of adminUsers) {
-      await sendNewUserNotification(admin.email, user);
+    try {
+      for (const admin of adminUsers) {
+        await sendNewUserNotification(admin.email, user);
+      }
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+      // Continue with registration even if email fails
     }
 
     res.status(201).json({
@@ -75,7 +80,10 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Error registering user' });
+    res.status(500).json({ 
+      message: 'Error registering user',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -305,15 +313,33 @@ export const approveUser = async (req, res) => {
       return res.status(400).json({ message: 'User is already approved' });
     }
 
+    // Update user approval status
     await user.update({ is_approved: true });
     
-    // Send approval notification email
-    await sendApprovalNotification(user.email, user.username);
+    // Try to send approval notification email
+    try {
+      await sendApprovalNotification(user.email, user.username);
+    } catch (emailError) {
+      console.error('Error sending approval notification:', emailError);
+      // Continue with approval even if email fails
+    }
 
-    res.json({ message: 'User approved successfully' });
+    res.json({ 
+      message: 'User approved successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        is_approved: true
+      }
+    });
   } catch (error) {
     console.error('Approve user error:', error);
-    res.status(500).json({ message: 'Error approving user' });
+    res.status(500).json({ 
+      message: 'Error approving user',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { API_ENDPOINTS, API_BASE_URL } from '../../config/api.config';
+import { API_ENDPOINTS } from '../../config/api.config';
 import { useAuth } from '../../context/AuthContext';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +42,7 @@ const Categories = () => {
         throw new Error('No authentication token available');
       }
 
-      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.ALL}`, {
+      const response = await axios.get(API_ENDPOINTS.CATEGORIES.ALL, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -89,7 +89,7 @@ const Categories = () => {
         throw new Error('No authentication token available');
       }
 
-      await axios.delete(`${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.DELETE(id)}`, {
+      await axios.delete(API_ENDPOINTS.CATEGORIES.DELETE(id), {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -140,13 +140,13 @@ const Categories = () => {
 
       if (editingCategory) {
         await axios.put(
-          `${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.UPDATE(editingCategory.id)}`,
+          API_ENDPOINTS.CATEGORIES.UPDATE(editingCategory.id),
           payload,
           { headers }
         );
       } else {
         await axios.post(
-          `${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.CREATE}`,
+          API_ENDPOINTS.CATEGORIES.CREATE,
           payload,
           { headers }
         );

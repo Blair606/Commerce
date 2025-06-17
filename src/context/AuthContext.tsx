@@ -89,17 +89,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      await axios.post(API_ENDPOINTS.AUTH.REGISTER, {
+      const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, {
         username,
         email,
         password
       });
       
-      // Don't set token or user on registration since account needs approval
-      throw new Error('Registration successful! Please wait for admin approval before logging in.');
+      // Return success message
+      return response.data.message;
     } catch (error) {
-      if (error instanceof Error && error.message === 'Registration successful! Please wait for admin approval before logging in.') {
-        throw error;
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message || 'An error occurred during registration';
+        throw new Error(message);
       }
       console.error('Registration error:', error);
       throw new Error('An error occurred during registration');

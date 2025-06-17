@@ -66,7 +66,7 @@ const Products = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.ALL}`,
+        API_ENDPOINTS.PRODUCTS.ALL,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setProducts(response.data.products);
@@ -80,7 +80,7 @@ const Products = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.CATEGORIES.ALL}`);
+      const response = await axios.get(API_ENDPOINTS.CATEGORIES.ALL);
       setCategories(response.data || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -153,7 +153,7 @@ const Products = () => {
 
       if (editingProduct) {
         await axios.put(
-          `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.UPDATE}/${editingProduct.id}`,
+          `${API_ENDPOINTS.PRODUCTS.UPDATE}/${editingProduct.id}`,
           formData,
           { 
             headers: { 
@@ -164,7 +164,7 @@ const Products = () => {
         );
       } else {
         const response = await axios.post(
-          `${API_BASE_URL}${API_ENDPOINTS.PRODUCTS.CREATE}`,
+          API_ENDPOINTS.PRODUCTS.CREATE,
           formData,
           { 
             headers: { 
@@ -201,62 +201,53 @@ const Products = () => {
   });
 
   const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onDelete }) => {
-    const [imageError, setImageError] = useState(false);
-
     const handleImageError = () => {
-      setImageError(true);
+      console.error('Error loading image:', product.image_url);
     };
 
     const getImageUrl = (imageUrl: string | null) => {
-      if (!imageUrl) return null;
-      // If the URL is already absolute, return it as is
+      if (!imageUrl) return '/placeholder-image.jpg';
       if (imageUrl.startsWith('http')) return imageUrl;
-      // Otherwise, prepend the backend URL
-      return `${BACKEND_URL}${imageUrl}`;
+      // Remove any leading slashes to avoid double slashes
+      const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl;
+      return `${BACKEND_URL}/${cleanPath}`;
     };
+
+    // Ensure price is a number
+    const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
 
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+        exit={{ opacity: 0, y: -20 }}
+        className="bg-white rounded-lg shadow-md overflow-hidden"
       >
-        <div className="relative h-48 bg-gray-100">
-          {!imageError && product.image_url ? (
-            <img
-              src={getImageUrl(product.image_url)}
-              alt={product.name}
-              className="w-full h-full object-cover"
-              onError={handleImageError}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <span className="text-gray-400">No image available</span>
-            </div>
-          )}
+        <div className="relative h-48">
+          <img
+            src={getImageUrl(product.image_url)}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            onError={handleImageError}
+          />
         </div>
         <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
-          <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description}</p>
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-bold text-indigo-600">{formatPrice(Number(product.price))}</span>
+          <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
+          <p className="mt-1 text-sm text-gray-500 line-clamp-2">{product.description}</p>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-lg font-bold text-indigo-600">{formatPrice(price)}</span>
             <span className="text-sm text-gray-500">Stock: {product.stock}</span>
-          </div>
-          <div className="mt-2">
-            <span className="text-sm text-gray-500">
-              Category: {product.category || 'Uncategorized'}
-            </span>
           </div>
           <div className="mt-4 flex justify-end space-x-2">
             <button
               onClick={() => onEdit(product)}
-              className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-900"
+              className="px-3 py-1 text-sm text-indigo-600 hover:text-indigo-800"
             >
               Edit
             </button>
             <button
               onClick={() => onDelete(product.id)}
-              className="px-3 py-1 text-sm text-red-600 hover:text-red-900"
+              className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
             >
               Delete
             </button>
