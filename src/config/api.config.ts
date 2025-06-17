@@ -44,5 +44,9 @@ export const API_ENDPOINTS = {
     GET: (id: number) => `${API_BASE_URL}/orders/${id}`,
     UPDATE: (id: number) => `${API_BASE_URL}/orders/${id}`,
     CANCEL: (id: number) => `${API_BASE_URL}/orders/${id}/cancel`
+  },
+  MPESA: {
+    CALLBACK: `${API_BASE_URL}/mpesa/callback`,
+    QUERY: `${API_BASE_URL}/mpesa/query`
   }
 } as const; 

@@ -13,7 +13,20 @@ import { useSettings } from '../../context/SettingsContext';
 // Separate components for better organization
 const CurrencySettings = () => {
   const { settings, updateSettings } = useSettings();
+  const [mpesaConfig, setMpesaConfig] = useState({
+    consumerKey: '',
+    consumerSecret: '',
+    passkey: '',
+    shortcode: '',
+    env: 'sandbox'
+  });
   
+  const [paypalConfig, setPaypalConfig] = useState({
+    clientId: '',
+    clientSecret: '',
+    mode: 'sandbox'
+  });
+
   const currencies = [
     { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling' },
     { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -43,6 +56,37 @@ const CurrencySettings = () => {
         position
       }
     });
+  };
+
+  const handleMpesaConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setMpesaConfig(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePaypalConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPaypalConfig(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const savePaymentConfig = async () => {
+    try {
+      await updateSettings({
+        paymentGateways: {
+          mpesa: mpesaConfig,
+          paypal: paypalConfig
+        }
+      });
+      alert('Payment settings saved successfully');
+    } catch (error) {
+      console.error('Error saving payment settings:', error);
+      alert('Failed to save payment settings');
+    }
   };
 
   return (
@@ -75,32 +119,141 @@ const CurrencySettings = () => {
               <option value="after">After price (100{settings.currency.symbol})</option>
             </select>
           </div>
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Preview</h4>
-            <p className="text-lg">
-              {settings.currency.position === 'before' 
-                ? `${settings.currency.symbol} 1,234.56`
-                : `1,234.56 ${settings.currency.symbol}`}
-            </p>
-          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Methods</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex items-center">
-              <CreditCardIcon className="h-6 w-6 text-gray-400 mr-3" />
+        <div className="space-y-6">
+          {/* M-Pesa Configuration */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <img src="/mpesa-logo.png" alt="M-Pesa" className="h-8 w-auto mr-3" />
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">M-Pesa</h4>
+                  <p className="text-sm text-gray-500">Mobile money payments</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h4 className="text-sm font-medium text-gray-900">Credit Card</h4>
-                <p className="text-sm text-gray-500">Accept credit card payments</p>
+                <label className="block text-sm font-medium text-gray-700">Consumer Key</label>
+                <input
+                  type="text"
+                  name="consumerKey"
+                  value={mpesaConfig.consumerKey}
+                  onChange={handleMpesaConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Consumer Secret</label>
+                <input
+                  type="password"
+                  name="consumerSecret"
+                  value={mpesaConfig.consumerSecret}
+                  onChange={handleMpesaConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Passkey</label>
+                <input
+                  type="password"
+                  name="passkey"
+                  value={mpesaConfig.passkey}
+                  onChange={handleMpesaConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Shortcode</label>
+                <input
+                  type="text"
+                  name="shortcode"
+                  value={mpesaConfig.shortcode}
+                  onChange={handleMpesaConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Environment</label>
+                <select
+                  name="env"
+                  value={mpesaConfig.env}
+                  onChange={handleMpesaConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="sandbox">Sandbox</option>
+                  <option value="production">Production</option>
+                </select>
               </div>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-            </label>
+          </div>
+
+          {/* PayPal Configuration */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <img src="/paypal-logo.png" alt="PayPal" className="h-8 w-auto mr-3" />
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">PayPal</h4>
+                  <p className="text-sm text-gray-500">Credit card and PayPal payments</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" defaultChecked />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Client ID</label>
+                <input
+                  type="text"
+                  name="clientId"
+                  value={paypalConfig.clientId}
+                  onChange={handlePaypalConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Client Secret</label>
+                <input
+                  type="password"
+                  name="clientSecret"
+                  value={paypalConfig.clientSecret}
+                  onChange={handlePaypalConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Mode</label>
+                <select
+                  name="mode"
+                  value={paypalConfig.mode}
+                  onChange={handlePaypalConfigChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="sandbox">Sandbox</option>
+                  <option value="live">Live</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={savePaymentConfig}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Save Payment Settings
+            </button>
           </div>
         </div>
       </div>

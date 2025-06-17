@@ -1,72 +1,90 @@
 import { Order, OrderItem, Product, User } from '../models/index.js';
 import { sequelize } from '../models/index.js';
+import { sendNewOrderNotification, sendOrderConfirmation, sendOrderPaidNotification } from '../services/email.service.js';
 
 // Create a new order
 export const createOrder = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  const t = await sequelize.transaction();
 
   try {
-    const { items, ...orderData } = req.body;
+    const { items, shipping_address, payment_method } = req.body;
     const userId = req.user.id;
 
-    // Create the order
-    const order = await Order.create({
-      ...orderData,
-      user_id: userId,
-      status: 'pending',
-      total_amount: 0 // Will be calculated below
-    }, { transaction });
-
-    // Create order items and calculate total
+    // Calculate total amount
     let totalAmount = 0;
     for (const item of items) {
       const product = await Product.findByPk(item.product_id);
       if (!product) {
         throw new Error(`Product with ID ${item.product_id} not found`);
       }
-
-      // Check stock
       if (product.stock < item.quantity) {
         throw new Error(`Insufficient stock for product ${product.name}`);
       }
+      totalAmount += product.price * item.quantity;
+    }
 
-      // Create order item
+    // Create order
+    const order = await Order.create({
+      user_id: userId,
+      total_amount: totalAmount,
+      shipping_address,
+      payment_method,
+      status: 'pending',
+      payment_status: 'pending'
+    }, { transaction: t });
+
+    // Create order items and update stock
+    for (const item of items) {
+      const product = await Product.findByPk(item.product_id);
       await OrderItem.create({
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
         price: product.price
-      }, { transaction });
+      }, { transaction: t });
 
       // Update product stock
       await product.update({
         stock: product.stock - item.quantity
-      }, { transaction });
-
-      totalAmount += product.price * item.quantity;
+      }, { transaction: t });
     }
 
-    // Update order total
-    await order.update({
-      total_amount: totalAmount
-    }, { transaction });
-
-    await transaction.commit();
-
-    res.status(201).json({
-      message: 'Order created successfully',
-      orderId: order.id,
-      order: {
-        id: order.id,
-        total_amount: order.total_amount,
-        status: order.status
-      }
+    // Get order with user and items for email
+    const orderWithDetails = await Order.findByPk(order.id, {
+      include: [
+        { model: User, attributes: ['username', 'email'] },
+        { model: OrderItem, include: [{ model: Product, attributes: ['name', 'price'] }] }
+      ],
+      transaction: t
     });
+
+    // Send notifications
+    try {
+      // Send confirmation to customer
+      await sendOrderConfirmation(orderWithDetails.user.email, orderWithDetails);
+
+      // Send notification to all admin users
+      const adminUsers = await User.findAll({
+        where: { role: 'admin', is_active: true },
+        attributes: ['email']
+      });
+
+      for (const admin of adminUsers) {
+        await sendNewOrderNotification(admin.email, orderWithDetails);
+      }
+    } catch (emailError) {
+      console.error('Error sending order notifications:', emailError);
+      // Continue with order creation even if email fails
+    }
+
+    await t.commit();
+    res.status(201).json(orderWithDetails);
   } catch (error) {
-    await transaction.rollback();
-    console.error('Error creating order:', error);
-    res.status(400).json({
-      message: error.message || 'Failed to create order'
+    await t.rollback();
+    console.error('Create order error:', error);
+    res.status(500).json({ 
+      message: 'Error creating order',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -124,24 +142,59 @@ export const getOrderById = async (req, res) => {
 
 // Update an order
 export const updateOrder = async (req, res) => {
+  const t = await sequelize.transaction();
+
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { status } = req.body;
+    const { status, payment_status } = req.body;
 
-    const order = await Order.findOne({
-      where: { id, user_id: userId }
+    const order = await Order.findByPk(id, {
+      include: [
+        { model: User, attributes: ['username', 'email'] },
+        { model: OrderItem, include: [{ model: Product, attributes: ['name', 'price'] }] }
+      ],
+      transaction: t
     });
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    await order.update({ status });
-    res.json({ message: 'Order updated successfully', order });
+    // Update order status
+    await order.update({
+      status,
+      payment_status,
+      ...(payment_status === 'completed' && { payment_reference: req.body.payment_reference })
+    }, { transaction: t });
+
+    // If payment is completed, send notifications
+    if (payment_status === 'completed') {
+      try {
+        // Send notification to all admin users
+        const adminUsers = await User.findAll({
+          where: { role: 'admin', is_active: true },
+          attributes: ['email']
+        });
+
+        for (const admin of adminUsers) {
+          await sendOrderPaidNotification(admin.email, order);
+        }
+      } catch (emailError) {
+        console.error('Error sending payment notifications:', emailError);
+        // Continue with order update even if email fails
+      }
+    }
+
+    await t.commit();
+    res.json(order);
   } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ message: 'Failed to update order' });
+    await t.rollback();
+    console.error('Update order status error:', error);
+    res.status(500).json({ 
+      message: 'Error updating order status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
